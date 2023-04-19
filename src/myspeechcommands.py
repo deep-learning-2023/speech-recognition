@@ -17,13 +17,12 @@ _CHECKSUMS = {
     "http://download.tensorflow.org/data/speech_commands_v0.02.tar.gz": "af14739ee7dc311471de98f5f9d2c9191b18aedfe957f4a6ff791c709868ff58",  # noqa: E501
 }
 
-labels_to_predict_mapping = ['yes', 'no', 'up', 'down', 'left', 'right', 'on', 'off', 'stop', 'go', '_background_noise_']
+without_noise = ['yes', 'no', 'up', 'down', 'left', 'right', 'on', 'off', 'stop', 'go', 'unknown']
 unknown_labels = {
     'bed',
     'bird',
     'cat',
     'dog',
-    'down',
     'eight',
     'five',
     'four',
@@ -31,6 +30,7 @@ unknown_labels = {
     'house',
     'marvin',
     'nine',
+    'one',
     'seven',
     'sheila',
     'six',
@@ -40,10 +40,20 @@ unknown_labels = {
     'wow',
     'zero'
 }
-labels_set = set(labels_to_predict_mapping)
-labels_to_predict_mapping = dict(zip(labels_to_predict_mapping, range(len(labels_to_predict_mapping))))
-labels_to_predict_mapping["unknown"] = len(labels_to_predict_mapping)
-int_to_label_mapping = {v: k for k, v in labels_to_predict_mapping.items()}
+labels_to_predict_mapping = {
+    'yes': 0,
+    'no': 1,
+    'up': 2,
+    'down': 3,
+    'left': 4,
+    'right': 5,
+    'on': 6,
+    'off': 7,
+    'stop': 8,
+    'go': 9,
+    '_background_noise_': 10
+}
+total_good_labels = 11
 
 def _load_list(root, *filenames):
     output = []
@@ -127,20 +137,30 @@ class MYSPEECHCOMMANDS(Dataset):
         if labels_subset is not None:
             subset_labels_contains_unknown = any([label == 'unknown' for label in labels_subset])
             labels_subset = labels_subset if not subset_labels_contains_unknown else labels_subset.append(unknown_labels)
+            labels_subset = list(filter(lambda x: x != 'unknown', labels_subset))
 
             for label in labels_subset:
-                if label not in unknown_labels or label not in labels_to_predict_mapping.keys():
+                if label not in unknown_labels and label not in labels_to_predict_mapping.keys():
                     raise ValueError(f"{label} is not a valid label.")
             
             
-            to_predict_labels = filter(lambda x: x in labels_to_predict_mapping.keys(), labels_subset)
+            to_predict_labels = list(filter(lambda x: x in labels_to_predict_mapping.keys(), labels_subset))
+            l_unknown_labels = list(filter(lambda x: x in unknown_labels, labels_subset))
             self.local_label_mapping = {label: i for i, label in enumerate(to_predict_labels)}
-            if len(to_predict_labels) != len(labels_subset):
-                self.local_label_mapping['unknown'] = len(self.local_label_mapping)
+            self.local_unknown_idx = len(self.local_label_mapping)
+            self.int_to_label = {v: k for k, v in self.local_label_mapping.items()}
+            self.int_to_label[self.local_unknown_idx] = 'unknown'
+            for ul in l_unknown_labels:
+                self.local_label_mapping[ul] = self.local_unknown_idx
         else:
-            self.local_label_mapping = labels_to_predict_mapping
-
-        self.int_to_label = {v: k for k, v in self.local_label_mapping.items()}
+            self.local_label_mapping = labels_to_predict_mapping.copy()
+            self.int_to_label = {v: k for k, v in self.local_label_mapping.items()}
+            self.int_to_label[total_good_labels] = 'unknown'
+            self.local_unknown_idx = len(self.local_label_mapping)
+            for ul in unknown_labels:
+                print(f'Adding {ul} to local label mapping with index {self.local_unknown_idx}')
+                print(f'{len(labels_to_predict_mapping)}')
+                self.local_label_mapping[ul] = self.local_unknown_idx
 
         if subset == "validation":
             self._walker = [
@@ -218,11 +238,11 @@ class MYSPEECHCOMMANDS(Dataset):
         return (waveform, label)
     
     def get_label(self, n: int) -> str:
-        return self.int_to_label[self.int_to_label[n]]
+        return self.int_to_label[n]
 
     def local_to_global_label(self, local_label: int) -> int:
         str_label = self.int_to_label[local_label]
-        return labels_to_predict_mapping[str_label]
+        return labels_to_predict_mapping.get(str_label, total_good_labels)
 
 
     def __len__(self) -> int:
