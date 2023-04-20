@@ -34,17 +34,17 @@ class AudioDataModule(pl.LightningDataModule):
 
     def train_dataloader(self):
         return torch.utils.data.DataLoader(
-            self.speechcommands_train, batch_size=self.batch_size
+            self.speechcommands_train, batch_size=self.batch_size, num_workers=4
         )
 
     def val_dataloader(self):
         return torch.utils.data.DataLoader(
-            self.speechcommands_val, batch_size=self.batch_size
+            self.speechcommands_val, batch_size=self.batch_size, num_workers=4
         )
 
     def test_dataloader(self):
         return torch.utils.data.DataLoader(
-            self.speechcommands_test, batch_size=self.batch_size
+            self.speechcommands_test, batch_size=self.batch_size, num_workers=4
         )
 
     def get_data_dimensions(self):
@@ -68,17 +68,17 @@ def pad_to(x, length):
 
 def MFCC_transform():
     n_fft = 512
-    n_mels = 128
+    n_mels = 256
     n_mfcc = 40
 
     mfcc = MFCC(
         sample_rate=8000,
-        n_mfcc=n_mfcc,
-        melkwargs={
-            "n_fft": n_fft,
-            "n_mels": n_mels,
-            "mel_scale": "htk",
-        },
+        # n_mfcc=n_mfcc,
+        # melkwargs={
+        #     "n_fft": n_fft,
+        #     "n_mels": n_mels,
+        #     "mel_scale": "htk",
+        # },
     )
 
     def tf(waveform):
@@ -90,16 +90,18 @@ def MFCC_transform():
 
         ficzury = torch.squeeze(ficzury, dim=0)
 
+        ficzury  = torch.swapaxes(ficzury, 0, 1)
+
         return ficzury
 
     return tf
 
 
 def wave2vec_transform():
-    model = WAV2VEC2_ASR_LARGE_LV60K_960H.get_model().to("cuda")
+    model = WAV2VEC2_ASR_LARGE_LV60K_960H.get_model()
 
     def tf(waveform):
-        waveform = waveform.to("cuda")
+        waveform = waveform
         waveform = pad_to(waveform, 16000)
         with torch.no_grad():
             ficzury, _ = model(waveform)

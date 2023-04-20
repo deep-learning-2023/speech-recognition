@@ -158,8 +158,6 @@ class MYSPEECHCOMMANDS(Dataset):
             self.int_to_label[total_good_labels] = 'unknown'
             self.local_unknown_idx = len(self.local_label_mapping)
             for ul in unknown_labels:
-                print(f'Adding {ul} to local label mapping with index {self.local_unknown_idx}')
-                print(f'{len(labels_to_predict_mapping)}')
                 self.local_label_mapping[ul] = self.local_unknown_idx
 
         if subset == "validation":
