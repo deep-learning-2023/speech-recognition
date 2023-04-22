@@ -32,6 +32,7 @@ class MyPrintingCallback(Callback):
         trainer.logger.experiment.add_figure(
             "Confusion matrix", fig_, pl_module.current_epoch
         )
+        pl_module.validation_step_outputs = []
 
     def on_test_end(self, trainer, pl_module):
         preds = torch.cat([tmp["preds"] for tmp in pl_module.test_step_outputs])
@@ -47,6 +48,7 @@ class MyPrintingCallback(Callback):
         plt.close(fig_)
 
         trainer.logger.experiment.add_figure("Confusion matrix", fig_)
+        pl_module.test_step_outputs = []
 
 
 torch.set_float32_matmul_precision("medium")
@@ -81,7 +83,7 @@ trainer = Trainer(
         LearningRateMonitor(logging_interval="step"),
         TQDMProgressBar(refresh_rate=10),
         MyPrintingCallback(),
-        EarlyStopping(monitor="val_acc", patience=40),
+        EarlyStopping(monitor="val_acc", patience=50),
     ],
 )
 
