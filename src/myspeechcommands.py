@@ -8,6 +8,7 @@ from torch.utils.data import Dataset
 from torchaudio.datasets.utils import _extract_tar, _load_waveform
 
 import random
+import torch
 
 FOLDER_IN_ARCHIVE = "SpeechCommands"
 URL = "speech_commands_v0.01"
@@ -96,7 +97,7 @@ class MYSPEECHCOMMANDS(Dataset):
         transform: Optional[Callable[[Tensor], Tensor]] = None,
         labels_subset: Optional[list[str]] = None,
         sample_equally: bool = False,
-        extension: str = ".wav",
+        wav2vec_transformed: bool = False,
     ) -> None:
         url = URL
         self.transform = transform
@@ -125,6 +126,8 @@ class MYSPEECHCOMMANDS(Dataset):
 
         self._path = os.path.join(root, folder_in_archive)
 
+        self.wav2vec_transformed = wav2vec_transformed
+
         if download:
             if not os.path.isdir(self._path):
                 if not os.path.isfile(archive):
@@ -140,7 +143,8 @@ class MYSPEECHCOMMANDS(Dataset):
                 
         if labels_subset is not None:
             subset_labels_contains_unknown = any([label == 'unknown' for label in labels_subset])
-            labels_subset = labels_subset if not subset_labels_contains_unknown else labels_subset.append(unknown_labels)
+            if subset_labels_contains_unknown:
+                labels_subset + list(unknown_labels)
             labels_subset = list(filter(lambda x: x != 'unknown', labels_subset))
 
             for label in labels_subset:
@@ -178,14 +182,14 @@ class MYSPEECHCOMMANDS(Dataset):
             ]
         elif subset == "training":
             excludes = set(_load_list(self._path, "validation_list.txt", "testing_list.txt"))
-            walker = sorted(str(p) for p in Path(self._path).glob(f'*/*{extension}'))
+            walker = sorted(str(p) for p in Path(self._path).glob(f'*/*.wav'))
             self._walker = [
                 w
                 for w in walker
                 if (HASH_DIVIDER in w and EXCEPT_FOLDER not in w and os.path.normpath(w) not in excludes) and any([label == w.split('/')[2] for label in self.local_label_mapping.keys()])
             ]
         else:
-            walker = sorted(str(p) for p in Path(self._path).glob(f'*/*{extension}'))
+            walker = sorted(str(p) for p in Path(self._path).glob(f'*/*.wav'))
             self._walker = [w for w in walker if (HASH_DIVIDER in w and EXCEPT_FOLDER not in w) and any([label == w.split('/')[2] for label in self.local_label_mapping.keys()])]
 
         if sample_equally:
@@ -241,7 +245,12 @@ class MYSPEECHCOMMANDS(Dataset):
                 Utterance number
         """
         metadata = self.get_metadata(n)
-        waveform = _load_waveform(self._archive, metadata[0], metadata[1])
+        if self.wav2vec_transformed:
+            wav2vec_path = metadata[0][:-3] + 'pt'
+            path = os.path.join(self._archive, wav2vec_path)
+            waveform = torch.load(path)
+        else:
+            waveform = _load_waveform(self._archive, metadata[0], metadata[1])
         label = self.local_label_mapping[metadata[2]]
         if self.transform is not None:
             waveform = self.transform(waveform)

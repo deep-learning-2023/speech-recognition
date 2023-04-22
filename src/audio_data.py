@@ -15,12 +15,16 @@ class AudioDataModule(pl.LightningDataModule):
         batch_size: int = 64,
         data_transform=None,
         label_subset: list[str] = None,
+        collate_fn=torch.utils.data.default_collate,
+        wav2vec: bool = False
     ):
         super().__init__()
         self.data_dir = data_dir
         self.batch_size = batch_size
         self.data_transform = data_transform
         self.label_subset = label_subset
+        self.wav2vec = wav2vec
+        self.collate_fn = collate_fn
 
     def prepare_data(self) -> None:
         super().prepare_data()
@@ -29,18 +33,21 @@ class AudioDataModule(pl.LightningDataModule):
             subset="training",
             transform=self.data_transform,
             labels_subset=self.label_subset,
+            wav2vec_transformed=self.wav2vec
         )
         self.speechcommands_test = MYSPEECHCOMMANDS(
             self.data_dir,
             subset="testing",
             transform=self.data_transform,
             labels_subset=self.label_subset,
+            wav2vec_transformed=self.wav2vec
         )
         self.speechcommands_val = MYSPEECHCOMMANDS(
             self.data_dir,
             subset="validation",
             transform=self.data_transform,
             labels_subset=self.label_subset,
+            wav2vec_transformed=self.wav2vec
         )
 
     def setup(self, stage=None):
@@ -48,17 +55,17 @@ class AudioDataModule(pl.LightningDataModule):
 
     def train_dataloader(self):
         return torch.utils.data.DataLoader(
-            self.speechcommands_train, batch_size=self.batch_size, num_workers=4
+            self.speechcommands_train, batch_size=self.batch_size, num_workers=2, collate_fn=self.collate_fn, shuffle=True
         )
 
     def val_dataloader(self):
         return torch.utils.data.DataLoader(
-            self.speechcommands_val, batch_size=self.batch_size, num_workers=4
+            self.speechcommands_val, batch_size=self.batch_size, num_workers=2, collate_fn=self.collate_fn, shuffle=True
         )
 
     def test_dataloader(self):
         return torch.utils.data.DataLoader(
-            self.speechcommands_test, batch_size=self.batch_size, num_workers=4
+            self.speechcommands_test, batch_size=self.batch_size, num_workers=2, collate_fn=self.collate_fn, shuffle=True
         )
 
     def get_data_dimensions(self):
@@ -134,3 +141,29 @@ def spectrogram_transform():
         return ficzury
 
     return tf
+
+
+def discard_if_unknown(x):
+    # x is timeseries of probabilities
+    # discard entry if probability of the first class is higher than 0.5
+    tnsrs = []
+    y = torch.argmax(x, dim=1)
+    for i in range(x.shape[0]):
+        if y[i] != 0:
+            tnsrs.append(x[i][1:])
+    if len(tnsrs) < 1:
+        tnsrs.append(x[0][1:])
+    ret = torch.stack(tnsrs)
+    return ret
+
+def pad_to_max_length_collator(batch):
+    # batch is a list of tuples (x, y)
+    # x is a tensor of shape (sequence_length, input_size)
+    # y is a tensor of shape (1)
+    # pad all sequences to the length of the longest sequence
+    # and stack them into a tensor of shape (batch_size, sequence_length, input_size)
+    x = [item[0] for item in batch]
+    y = [item[1] for item in batch]
+    x = torch.nn.utils.rnn.pad_sequence(x, batch_first=True)
+    y = torch.as_tensor(y)
+    return x, y
