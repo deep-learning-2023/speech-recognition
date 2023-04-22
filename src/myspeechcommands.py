@@ -7,6 +7,8 @@ from torch.hub import download_url_to_file
 from torch.utils.data import Dataset
 from torchaudio.datasets.utils import _extract_tar, _load_waveform
 
+import random
+
 FOLDER_IN_ARCHIVE = "SpeechCommands"
 URL = "speech_commands_v0.01"
 HASH_DIVIDER = "_nohash_"
@@ -92,7 +94,9 @@ class MYSPEECHCOMMANDS(Dataset):
         download: bool = True,
         subset: Optional[str] = None,
         transform: Optional[Callable[[Tensor], Tensor]] = None,
-        labels_subset: Optional[list[str]] = None
+        labels_subset: Optional[list[str]] = None,
+        sample_equally: bool = False,
+        extension: str = ".wav",
     ) -> None:
         url = URL
         self.transform = transform
@@ -174,15 +178,23 @@ class MYSPEECHCOMMANDS(Dataset):
             ]
         elif subset == "training":
             excludes = set(_load_list(self._path, "validation_list.txt", "testing_list.txt"))
-            walker = sorted(str(p) for p in Path(self._path).glob("*/*.wav"))
+            walker = sorted(str(p) for p in Path(self._path).glob(f'*/*{extension}'))
             self._walker = [
                 w
                 for w in walker
                 if (HASH_DIVIDER in w and EXCEPT_FOLDER not in w and os.path.normpath(w) not in excludes) and any([label == w.split('/')[2] for label in self.local_label_mapping.keys()])
             ]
         else:
-            walker = sorted(str(p) for p in Path(self._path).glob("*/*.wav"))
+            walker = sorted(str(p) for p in Path(self._path).glob(f'*/*{extension}'))
             self._walker = [w for w in walker if (HASH_DIVIDER in w and EXCEPT_FOLDER not in w) and any([label == w.split('/')[2] for label in self.local_label_mapping.keys()])]
+
+        if sample_equally:
+            walker_predict = [file for file in self._walker if file.split('/')[2] in labels_to_predict_mapping.keys()]
+            walker_unknown = [file for file in self._walker if file.split('/')[2] in unknown_labels]
+            random.shuffle(walker_unknown)
+            walker_unknown = walker_unknown[:len(walker_predict)]
+            self._walker = walker_predict + walker_unknown
+
 
     def get_metadata(self, n: int) -> Tuple[str, int, str, str, int]:
         """Get metadata for the n-th sample from the dataset. Returns filepath instead of waveform,
