@@ -81,7 +81,7 @@ trainer = Trainer(
         LearningRateMonitor(logging_interval="step"),
         TQDMProgressBar(refresh_rate=10),
         MyPrintingCallback(),
-        EarlyStopping(monitor="val_loss", patience=20),
+        EarlyStopping(monitor="val_acc", patience=40),
     ],
 )
 
