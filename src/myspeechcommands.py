@@ -8,6 +8,7 @@ from torch.utils.data import Dataset
 from torchaudio.datasets.utils import _extract_tar, _load_waveform
 
 import random
+import torch
 
 FOLDER_IN_ARCHIVE = "SpeechCommands"
 URL = "speech_commands_v0.01"
@@ -113,7 +114,7 @@ class MYSPEECHCOMMANDS(Dataset):
         transform: Optional[Callable[[Tensor], Tensor]] = None,
         labels_subset: Optional[list[str]] = None,
         sample_equally: bool = True,
-        extension: str = ".wav",
+        wav2vec_transformed: bool = False,
     ) -> None:
         url = URL
         self.transform = transform
@@ -143,6 +144,8 @@ class MYSPEECHCOMMANDS(Dataset):
         folder_in_archive = os.path.join(folder_in_archive, basename)
 
         self._path = os.path.join(root, folder_in_archive)
+
+        self.wav2vec_transformed = wav2vec_transformed
 
         if download:
             if not os.path.isdir(self._path):
@@ -220,7 +223,7 @@ class MYSPEECHCOMMANDS(Dataset):
             excludes = set(
                 _load_list(self._path, "validation_list.txt", "testing_list.txt")
             )
-            walker = sorted(str(p) for p in Path(self._path).glob(f"*/*{extension}"))
+            walker = sorted(str(p) for p in Path(self._path).glob(f"*/*.wav"))
             self._walker = [
                 w
                 for w in walker
@@ -237,7 +240,7 @@ class MYSPEECHCOMMANDS(Dataset):
                 )
             ]
         else:
-            walker = sorted(str(p) for p in Path(self._path).glob(f"*/*{extension}"))
+            walker = sorted(str(p) for p in Path(self._path).glob(f"*/*.wav"))
             self._walker = [
                 w
                 for w in walker
@@ -308,7 +311,12 @@ class MYSPEECHCOMMANDS(Dataset):
                 Utterance number
         """
         metadata = self.get_metadata(n)
-        waveform = _load_waveform(self._archive, metadata[0], metadata[1])
+        if self.wav2vec_transformed:
+            wav2vec_path = metadata[0][:-3] + 'pt'
+            path = os.path.join(self._archive, wav2vec_path)
+            waveform = torch.load(path)
+        else:
+            waveform = _load_waveform(self._archive, metadata[0], metadata[1])
         label = self.local_label_mapping[metadata[2]]
         if self.transform is not None:
             waveform = self.transform(waveform)
