@@ -10,29 +10,31 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 
-predicted = ["yes", "no", "unknown"]
+seed_everything(7)
+
+predicted = ["no", "up", "unknown"]
 
 
 class MyPrintingCallback(Callback):
-    def on_validation_epoch_end(self, trainer, pl_module):
-        preds = torch.cat([tmp["preds"] for tmp in pl_module.validation_step_outputs])
-        targets = torch.cat(
-            [tmp["target"] for tmp in pl_module.validation_step_outputs]
-        )
-        confusion_matrix = pl_module.confusion_matrix(preds, targets)
-        df_cm = pd.DataFrame(
-            confusion_matrix.cpu().numpy(),
-            index=predicted,
-            columns=predicted,
-        )
-        plt.figure(figsize=(10, 7))
-        fig_ = sns.heatmap(df_cm, annot=True, cmap="Spectral").get_figure()
-        plt.close(fig_)
+    # def on_validation_epoch_end(self, trainer, pl_module):
+    #     preds = torch.cat([tmp["preds"] for tmp in pl_module.validation_step_outputs])
+    #     targets = torch.cat(
+    #         [tmp["target"] for tmp in pl_module.validation_step_outputs]
+    #     )
+    #     confusion_matrix = pl_module.confusion_matrix(preds, targets)
+    #     df_cm = pd.DataFrame(
+    #         confusion_matrix.cpu().numpy(),
+    #         index=predicted,
+    #         columns=predicted,
+    #     )
+    #     plt.figure(figsize=(10, 7))
+    #     fig_ = sns.heatmap(df_cm, annot=True, cmap="Spectral").get_figure()
+    #     plt.close(fig_)
 
-        trainer.logger.experiment.add_figure(
-            "Confusion matrix", fig_, pl_module.current_epoch
-        )
-        pl_module.validation_step_outputs = []
+    #     trainer.logger.experiment.add_figure(
+    #         "Confusion matrix", fig_, pl_module.current_epoch
+    #     )
+    #     pl_module.validation_step_outputs = []
 
     def on_test_end(self, trainer, pl_module):
         preds = torch.cat([tmp["preds"] for tmp in pl_module.test_step_outputs])
@@ -75,15 +77,14 @@ model = LSTMDenseClassifier(
 )
 
 trainer = Trainer(
-    max_epochs=5000,
+    max_epochs=450,
     accelerator="auto",
     devices=1 if torch.cuda.is_available() else 0,
-    logger=TensorBoardLogger("lightning_logs", name="lstm_dense"),
+    logger=TensorBoardLogger("lightning_logs", name="lstm_dense_no_up"),
     callbacks=[
         LearningRateMonitor(logging_interval="step"),
         TQDMProgressBar(refresh_rate=10),
         MyPrintingCallback(),
-        EarlyStopping(monitor="val_acc", patience=50),
     ],
 )
 
