@@ -60,12 +60,12 @@ class AudioDataModule(pl.LightningDataModule):
 
     def val_dataloader(self):
         return torch.utils.data.DataLoader(
-            self.speechcommands_val, batch_size=self.batch_size, num_workers=2, collate_fn=self.collate_fn, shuffle=True
+            self.speechcommands_val, batch_size=self.batch_size, num_workers=2, collate_fn=self.collate_fn, shuffle=False
         )
 
     def test_dataloader(self):
         return torch.utils.data.DataLoader(
-            self.speechcommands_test, batch_size=self.batch_size, num_workers=2, collate_fn=self.collate_fn, shuffle=True
+            self.speechcommands_test, batch_size=self.batch_size, num_workers=2, collate_fn=self.collate_fn, shuffle=False
         )
 
     def get_data_dimensions(self):
