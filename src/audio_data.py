@@ -16,7 +16,7 @@ class AudioDataModule(pl.LightningDataModule):
         data_transform=None,
         label_subset: list[str] = None,
         collate_fn=torch.utils.data.default_collate,
-        wav2vec: bool = False
+        wav2vec: bool = False,
     ):
         super().__init__()
         self.data_dir = data_dir
@@ -33,21 +33,21 @@ class AudioDataModule(pl.LightningDataModule):
             subset="training",
             transform=self.data_transform,
             labels_subset=self.label_subset,
-            wav2vec_transformed=self.wav2vec
+            wav2vec_transformed=self.wav2vec,
         )
         self.speechcommands_test = MYSPEECHCOMMANDS(
             self.data_dir,
             subset="testing",
             transform=self.data_transform,
             labels_subset=self.label_subset,
-            wav2vec_transformed=self.wav2vec
+            wav2vec_transformed=self.wav2vec,
         )
         self.speechcommands_val = MYSPEECHCOMMANDS(
             self.data_dir,
             subset="validation",
             transform=self.data_transform,
             labels_subset=self.label_subset,
-            wav2vec_transformed=self.wav2vec
+            wav2vec_transformed=self.wav2vec,
         )
 
     def setup(self, stage=None):
@@ -55,17 +55,29 @@ class AudioDataModule(pl.LightningDataModule):
 
     def train_dataloader(self):
         return torch.utils.data.DataLoader(
-            self.speechcommands_train, batch_size=self.batch_size, num_workers=2, collate_fn=self.collate_fn, shuffle=True
+            self.speechcommands_train,
+            batch_size=self.batch_size,
+            num_workers=6,
+            collate_fn=self.collate_fn,
+            shuffle=True,
         )
 
     def val_dataloader(self):
         return torch.utils.data.DataLoader(
-            self.speechcommands_val, batch_size=self.batch_size, num_workers=2, collate_fn=self.collate_fn, shuffle=False
+            self.speechcommands_val,
+            batch_size=self.batch_size,
+            num_workers=6,
+            collate_fn=self.collate_fn,
+            shuffle=False,
         )
 
     def test_dataloader(self):
         return torch.utils.data.DataLoader(
-            self.speechcommands_test, batch_size=self.batch_size, num_workers=2, collate_fn=self.collate_fn, shuffle=False
+            self.speechcommands_test,
+            batch_size=self.batch_size,
+            num_workers=6,
+            collate_fn=self.collate_fn,
+            shuffle=False,
         )
 
     def get_data_dimensions(self):
@@ -155,6 +167,7 @@ def discard_if_unknown(x):
         tnsrs.append(x[0][1:])
     ret = torch.stack(tnsrs)
     return ret
+
 
 def pad_to_max_length_collator(batch):
     # batch is a list of tuples (x, y)

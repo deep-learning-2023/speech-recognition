@@ -6,10 +6,14 @@ import pytorch_lightning as pl
 
 
 class LSTMDenseClassifier(pl.LightningModule):
-    def __init__(self, input_size, hidden_size, num_layers, num_classes):
+    def __init__(
+        self, input_size, hidden_size, num_layers, num_classes, classes: list[str]
+    ):
         super().__init__()
         super().save_hyperparameters()
         self.num_layers = num_layers
+        self.classes = classes
+
         self.lstm = nn.LSTM(
             input_size, hidden_size, num_layers=self.num_layers, batch_first=True
         )
@@ -112,11 +116,14 @@ class LSTMDenseClassifier(pl.LightningModule):
 
 
 class LSTMGRUMODEL(pl.LightningModule):
-    def __init__(self, input_size, hidden_size, num_layers, num_classes):
+    def __init__(
+        self, input_size, hidden_size, num_layers, num_classes, classes: list[str]
+    ):
         super().__init__()
         super().save_hyperparameters()
         self.num_layers = num_layers
         self.hidden_size = hidden_size
+        self.classes = classes
 
         self.lstm = nn.LSTM(
             input_size,

@@ -74,17 +74,19 @@ model = LSTMDenseClassifier(
     hidden_size=128,
     num_layers=1,
     num_classes=3,
+    classes=predicted,
 )
 
 trainer = Trainer(
-    max_epochs=450,
+    max_epochs=150,
     accelerator="auto",
     devices=1 if torch.cuda.is_available() else 0,
-    logger=TensorBoardLogger("lightning_logs", name="lstm_dense_no_up"),
+    logger=TensorBoardLogger("lightning_logs", name="lstm_dense_no_up_shuffle_test"),
     callbacks=[
         LearningRateMonitor(logging_interval="step"),
         TQDMProgressBar(refresh_rate=10),
         MyPrintingCallback(),
+        EarlyStopping(monitor="val_loss", patience=15),
     ],
 )
 
