@@ -13,6 +13,7 @@ class LSTMDenseClassifier(pl.LightningModule):
         super().save_hyperparameters()
         self.num_layers = num_layers
         self.classes = classes
+        self.log("model_class", "LSTMDenseClassifier")
 
         self.lstm = nn.LSTM(
             input_size, hidden_size, num_layers=self.num_layers, batch_first=True
@@ -124,6 +125,8 @@ class LSTMGRUMODEL(pl.LightningModule):
         self.num_layers = num_layers
         self.hidden_size = hidden_size
         self.classes = classes
+
+        self.log("model_class", "LSTMGRUClassifier")
 
         self.lstm = nn.LSTM(
             input_size,
