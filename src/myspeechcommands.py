@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from typing import Callable, Optional, Tuple, Union
+from collections import Counter
 
 from torch import Tensor
 from torch.hub import download_url_to_file
@@ -66,9 +67,8 @@ labels_to_predict_mapping = {
     "off": 7,
     "stop": 8,
     "go": 9,
-    "_background_noise_": 10,
 }
-total_good_labels = 11
+total_good_labels = 10
 
 
 def _load_list(root, *filenames):
@@ -161,29 +161,33 @@ class MYSPEECHCOMMANDS(Dataset):
                 )
 
         if labels_subset is not None:
-            # subset_labels_contains_unknown = any([label == 'unknown' for label in labels_subset])
-            # labels_subset = labels_subset if not subset_labels_contains_unknown else labels_subset.append(unknown_labels)
-            # labels_subset = list(filter(lambda x: x != 'unknown', labels_subset))
-            if "unknown" in labels_subset:
-                labels_subset.remove("unknown")
-                labels_subset += list(unknown_labels)
-
-            for label in labels_subset:
-                if (
-                    label not in unknown_labels
-                    and label not in labels_to_predict_mapping.keys()
-                ):
-                    raise ValueError(f"{label} is not a valid label.")
-
             to_predict_labels = list(
                 filter(lambda x: x in labels_to_predict_mapping.keys(), labels_subset)
             )
+            
+            if "unknown" in labels_subset:
+                labels_subset.remove("unknown")
+                labels_subset += list(unknown_labels)
+                labels_subset += list(labels_to_predict_mapping.keys())
+                # drop duplicates
+                labels_subset = list(set(labels_subset))
+                # remove silence
+                labels_subset.remove("_background_noise_")
+
+            for label in labels_subset:
+               if (
+                   label not in unknown_labels
+                   and label not in labels_to_predict_mapping.keys()
+               ):
+                   raise ValueError(f"{label} is not a valid label.")       
             l_unknown_labels = list(
-                filter(lambda x: x in unknown_labels, labels_subset)
+                filter(lambda x: x not in to_predict_labels, labels_subset)
             )
             self.local_label_mapping = {
                 label: i for i, label in enumerate(to_predict_labels)
             }
+            
+            print(f'to_predict_labels: {to_predict_labels}')
             self.local_unknown_idx = len(self.local_label_mapping)
             self.int_to_label = {v: k for k, v in self.local_label_mapping.items()}
             self.int_to_label[self.local_unknown_idx] = "unknown"
@@ -193,7 +197,7 @@ class MYSPEECHCOMMANDS(Dataset):
             self.local_label_mapping = labels_to_predict_mapping.copy()
             self.int_to_label = {v: k for k, v in self.local_label_mapping.items()}
             self.int_to_label[total_good_labels] = "unknown"
-            self.local_unknown_idx = len(self.local_label_mapping)
+            self.local_unknown_idx = total_good_labels
             for ul in unknown_labels:
                 self.local_label_mapping[ul] = self.local_unknown_idx
 
@@ -253,17 +257,22 @@ class MYSPEECHCOMMANDS(Dataset):
                 )
             ]
 
-        if sample_equally:
+        if sample_equally and labels_subset is not None:
             walker_predict = [
                 file
                 for file in self._walker
-                if file.split("/")[2] in labels_to_predict_mapping.keys()
+                if file.split("/")[2] in to_predict_labels
             ]
+
+            most_common_label_count = Counter(
+                [file.split("/")[2] for file in walker_predict]
+            ).most_common(1)[0][1]
+
             walker_unknown = [
-                file for file in self._walker if file.split("/")[2] in unknown_labels
+                file for file in self._walker if file.split("/")[2] in l_unknown_labels
             ]
             random.shuffle(walker_unknown)
-            walker_unknown = walker_unknown[: len(walker_predict)]
+            walker_unknown = walker_unknown[: most_common_label_count]
             self._walker = walker_predict + walker_unknown
 
     def get_metadata(self, n: int) -> Tuple[str, int, str, str, int]:

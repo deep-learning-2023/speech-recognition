@@ -32,21 +32,21 @@ class AudioDataModule(pl.LightningDataModule):
             self.data_dir,
             subset="training",
             transform=self.data_transform,
-            labels_subset=self.label_subset,
+            labels_subset=self.label_subset.copy(),
             wav2vec_transformed=self.wav2vec,
         )
         self.speechcommands_test = MYSPEECHCOMMANDS(
             self.data_dir,
             subset="testing",
             transform=self.data_transform,
-            labels_subset=self.label_subset,
+            labels_subset=self.label_subset.copy(),
             wav2vec_transformed=self.wav2vec,
         )
         self.speechcommands_val = MYSPEECHCOMMANDS(
             self.data_dir,
             subset="validation",
             transform=self.data_transform,
-            labels_subset=self.label_subset,
+            labels_subset=self.label_subset.copy(),
             wav2vec_transformed=self.wav2vec,
         )
 
