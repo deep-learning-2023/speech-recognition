@@ -57,7 +57,7 @@ class AudioDataModule(pl.LightningDataModule):
         return torch.utils.data.DataLoader(
             self.speechcommands_train,
             batch_size=self.batch_size,
-            num_workers=6,
+            num_workers=8,
             collate_fn=self.collate_fn,
             shuffle=True,
         )
@@ -66,7 +66,7 @@ class AudioDataModule(pl.LightningDataModule):
         return torch.utils.data.DataLoader(
             self.speechcommands_val,
             batch_size=self.batch_size,
-            num_workers=6,
+            num_workers=8,
             collate_fn=self.collate_fn,
             shuffle=False,
         )
@@ -75,7 +75,7 @@ class AudioDataModule(pl.LightningDataModule):
         return torch.utils.data.DataLoader(
             self.speechcommands_test,
             batch_size=self.batch_size,
-            num_workers=6,
+            num_workers=8,
             collate_fn=self.collate_fn,
             shuffle=False,
         )
