@@ -172,7 +172,7 @@ class MYSPEECHCOMMANDS(Dataset):
                 # drop duplicates
                 labels_subset = list(set(labels_subset))
                 # remove silence
-                labels_subset.remove("_background_noise_")
+                #labels_subset.remove("_background_noise_")
 
             for label in labels_subset:
                if (

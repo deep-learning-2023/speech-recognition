@@ -11,14 +11,13 @@ import seaborn as sns
 import pandas as pd
 from itertools import combinations
 from tqdm import tqdm
-
+import time
 
 torch.set_float32_matmul_precision("medium")
 
 base_labels = list(labels_to_predict_mapping.keys())
-base_labels.remove("_background_noise_")
 
-all_variants = combinations(base_labels, 2)
+all_variants = list(combinations(base_labels, 2))
 for i, variant in enumerate(all_variants):
     predicted = list(variant)
     predicted.append("unknown")
@@ -98,7 +97,7 @@ for i, variant in enumerate(all_variants):
         max_epochs=150,
         accelerator="auto",
         devices=1 if torch.cuda.is_available() else 0,
-        logger=TensorBoardLogger("lightning_logs", name=f'lstm_mfcc_{predicted[0]}_{predicted[1]}_shuffle_test'),
+        logger=TensorBoardLogger("lightning_logs", name=f'lstm_mfcc_{predicted[0]}_{predicted[1]}_shuffle_test_final'),
         callbacks=[
             LearningRateMonitor(logging_interval="step"),
             TQDMProgressBar(refresh_rate=0),
@@ -110,4 +109,6 @@ for i, variant in enumerate(all_variants):
     trainer.fit(model, datamodule=data_module)
     x = trainer.test(model, datamodule=data_module)
     print(x)
+
+    time.sleep(5)
     
