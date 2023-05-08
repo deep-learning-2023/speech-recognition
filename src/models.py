@@ -5,6 +5,66 @@ from torchmetrics import Accuracy, Precision, Recall, ConfusionMatrix
 import pytorch_lightning as pl
 
 
+class DenseClassifier(pl.LightningModule):
+    def __init__(self, input_size, hidden_size, num_classes, classes: list[str]):
+        super().__init__()
+        super().save_hyperparameters()
+        self.classes = classes
+        self.fc1 = nn.Linear(input_size, hidden_size)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(hidden_size, num_classes)
+        self.accuracy = Accuracy(task="multiclass", num_classes=num_classes)
+        self.precision = Precision(task="multiclass", num_classes=num_classes)
+        self.recall = Recall(task="multiclass", num_classes=num_classes)
+        self.confusion_matrix = ConfusionMatrix(
+            task="multiclass", num_classes=num_classes
+        )
+        self.validation_step_outputs = []
+        self.test_step_outputs = []
+
+    def forward(self, x):
+        out = self.fc1(x)
+        out = self.relu(out)
+        out = self.fc2(out)
+        return out
+
+    def configure_optimizers(self):
+        optimizer = optim.Adam(self.parameters(), lr=0.01)
+        return optimizer
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        loss = nn.CrossEntropyLoss()(y_hat, y)
+        # acc = (y_hat.argmax(dim=1) == y).float().mean()
+        acc = self.accuracy(y_hat, y)
+        self.log("train_loss", loss)
+        self.log("train_acc", acc)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        loss = nn.CrossEntropyLoss()(y_hat, y)
+        # acc = (y_hat.argmax(dim=1) == y).float().mean()
+        acc = self.accuracy(y_hat, y)
+        self.log("val_loss", loss)
+        self.log("val_acc", acc)
+        self.validation_step_outputs.append((y_hat, y))
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        loss = nn.CrossEntropyLoss()(y_hat, y)
+        # acc = (y_hat.argmax(dim=1) == y).float().mean()
+        acc = self.accuracy(y_hat, y)
+        self.log("test_loss", loss)
+        self.log("test_acc", acc)
+        self.log("test_precision", self.precision(y_hat, y))
+        self.log("test_recall", self.recall(y_hat, y))
+        self.test_step_outputs.append((y_hat, y))
+
+
 class LSTMDenseClassifier(pl.LightningModule):
     def __init__(
         self, input_size, hidden_size, num_layers, num_classes, classes: list[str]

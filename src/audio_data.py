@@ -6,6 +6,8 @@ from myspeechcommands import MYSPEECHCOMMANDS
 from torchaudio.transforms import MFCC
 
 from torchaudio.pipelines import WAV2VEC2_ASR_LARGE_LV60K_960H
+import cv2
+import numpy as np
 
 
 class AudioDataModule(pl.LightningDataModule):
@@ -154,9 +156,23 @@ def spectrogram_transform():
     def tf(waveform):
         waveform = torchaudio.transforms.Resample(16000, 8000)(waveform)
         waveform = pad_to(waveform, 8000)
-        ficzury = torchaudio.transforms.Spectrogram()(waveform)
-        ficzury = torch.squeeze(ficzury, dim=0)
-        return ficzury
+        spectrogram = torchaudio.transforms.Spectrogram(100)(waveform)
+        # ficzury = torch.squeeze(ficzury, dim=0)
+        image = spectrogram.squeeze().transpose(0, 1).numpy()
+        img = (image * 1000).astype("uint16")
+        blur = cv2.GaussianBlur(img, (5, 5), 0)
+        _, thresholded = cv2.threshold(
+            blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        )
+        moments = cv2.moments(thresholded)
+        huMoments = cv2.HuMoments(moments)
+        # log transfrom
+        for i in range(0, 7):
+            if huMoments[i] != 0:
+                huMoments[i] = -1 * np.sign(huMoments[i]) * np.log10(abs(huMoments[i]))
+        features = torch.tensor(huMoments, dtype=torch.float32)
+        print(features.shape)
+        return features
 
     return tf
 
