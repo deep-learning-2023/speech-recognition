@@ -73,7 +73,7 @@ class LSTMDenseClassifier(pl.LightningModule):
         super().save_hyperparameters()
         self.num_layers = num_layers
         self.classes = classes
-        self.log("model_class", "LSTMDenseClassifier")
+        self.log("model_class", 1)
 
         self.lstm = nn.LSTM(
             input_size, hidden_size, num_layers=self.num_layers, batch_first=True
@@ -186,7 +186,7 @@ class LSTMGRUMODEL(pl.LightningModule):
         self.hidden_size = hidden_size
         self.classes = classes
 
-        self.log("model_class", "LSTMGRUClassifier")
+        self.log("model_class", 2)
 
         self.lstm = nn.LSTM(
             input_size,
@@ -203,6 +203,15 @@ class LSTMGRUMODEL(pl.LightningModule):
             bidirectional=True,
         )
         self.fc = nn.Linear(hidden_size * 2, num_classes)
+
+        self.accuracy = Accuracy(task="multiclass", num_classes=num_classes)
+        self.precision = Precision(task="multiclass", num_classes=num_classes)
+        self.recall = Recall(task="multiclass", num_classes=num_classes)
+        self.confusion_matrix = ConfusionMatrix(
+            task="multiclass", num_classes=num_classes
+        )
+        self.validation_step_outputs = []
+        self.test_step_outputs = []
 
     def forward(self, x):
         h0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size).to(x.device)
@@ -222,7 +231,8 @@ class LSTMGRUMODEL(pl.LightningModule):
         x, y = batch
         y_hat = self(x)
         loss = nn.CrossEntropyLoss()(y_hat, y)
-        acc = (y_hat.argmax(dim=1) == y).float().mean()
+        # acc = (y_hat.argmax(dim=1) == y).float().mean()
+        acc = self.accuracy(y_hat, y)
         self.log("train_loss", loss)
         self.log("train_acc", acc)
         return loss
@@ -230,15 +240,28 @@ class LSTMGRUMODEL(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
+        self.validation_step_outputs.append({"preds": y_hat, "target": y})
         loss = nn.CrossEntropyLoss()(y_hat, y)
-        acc = (y_hat.argmax(dim=1) == y).float().mean()
+        acc = self.accuracy(y_hat, y)
+        precision = self.precision(y_hat, y)
+        recall = self.recall(y_hat, y)
         self.log("val_loss", loss)
         self.log("val_acc", acc)
+        self.log("val_precision", precision)
+        self.log("val_recall", recall)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
         loss = nn.CrossEntropyLoss()(y_hat, y)
-        acc = (y_hat.argmax(dim=1) == y).float().mean()
+        self.test_step_outputs.append({"preds": y_hat, "target": y})
+        # acc = (y_hat.argmax(dim=1) == y).float().mean()
+        # precision = pl.metrics.functional.precision(y_hat, y)
+        # recall = pl.metrics.functional.recall(y_hat, y)
+        acc = self.accuracy(y_hat, y)
+        precision = self.precision(y_hat, y)
+        recall = self.recall(y_hat, y)
         self.log("test_loss", loss)
         self.log("test_acc", acc)
+        self.log("test_precision", precision)
+        self.log("test_recall", recall)

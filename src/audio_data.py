@@ -28,27 +28,33 @@ class AudioDataModule(pl.LightningDataModule):
         self.wav2vec = wav2vec
         self.collate_fn = collate_fn
 
+    def cloned_subset(self):
+        if self.label_subset is None:
+            return None
+        else:
+            return self.label_subset.copy()
+
     def prepare_data(self) -> None:
         super().prepare_data()
         self.speechcommands_train = MYSPEECHCOMMANDS(
             self.data_dir,
             subset="training",
             transform=self.data_transform,
-            labels_subset=self.label_subset.copy(),
+            labels_subset=self.cloned_subset(),
             wav2vec_transformed=self.wav2vec,
         )
         self.speechcommands_test = MYSPEECHCOMMANDS(
             self.data_dir,
             subset="testing",
             transform=self.data_transform,
-            labels_subset=self.label_subset.copy(),
+            labels_subset=self.cloned_subset(),
             wav2vec_transformed=self.wav2vec,
         )
         self.speechcommands_val = MYSPEECHCOMMANDS(
             self.data_dir,
             subset="validation",
             transform=self.data_transform,
-            labels_subset=self.label_subset.copy(),
+            labels_subset=self.cloned_subset(),
             wav2vec_transformed=self.wav2vec,
         )
 
