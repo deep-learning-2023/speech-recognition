@@ -188,7 +188,7 @@ class MYSPEECHCOMMANDS(Dataset):
                 label: i for i, label in enumerate(to_predict_labels)
             }
 
-            print(f"to_predict_labels: {to_predict_labels}")
+            # print(f"to_predict_labels: {to_predict_labels}")
             self.local_unknown_idx = len(self.local_label_mapping)
             self.int_to_label = {v: k for k, v in self.local_label_mapping.items()}
             self.int_to_label[self.local_unknown_idx] = "unknown"

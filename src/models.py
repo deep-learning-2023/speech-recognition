@@ -23,6 +23,7 @@ class DenseClassifier(pl.LightningModule):
         self.test_step_outputs = []
 
     def forward(self, x):
+        x = x.view(x.size(0), -1)
         out = self.fc1(x)
         out = self.relu(out)
         out = self.fc2(out)
@@ -50,7 +51,7 @@ class DenseClassifier(pl.LightningModule):
         acc = self.accuracy(y_hat, y)
         self.log("val_loss", loss)
         self.log("val_acc", acc)
-        self.validation_step_outputs.append((y_hat, y))
+        self.validation_step_outputs.append({"preds": y_hat, "target": y})
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -62,7 +63,73 @@ class DenseClassifier(pl.LightningModule):
         self.log("test_acc", acc)
         self.log("test_precision", self.precision(y_hat, y))
         self.log("test_recall", self.recall(y_hat, y))
-        self.test_step_outputs.append((y_hat, y))
+        self.test_step_outputs.append({"preds": y_hat, "target": y})
+
+
+class CNNDenseClassifier(pl.LightningModule):
+    def __init__(self, num_classes, classes: list[str]):
+        super().__init__()
+        super().save_hyperparameters()
+        self.classes = classes
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
+        self.relu = nn.ReLU()
+        self.maxpool = nn.MaxPool2d(kernel_size=16)
+        self.fc1 = nn.Linear(960, 128)
+        self.fc2 = nn.Linear(128, num_classes)
+        self.accuracy = Accuracy(task="multiclass", num_classes=num_classes)
+        self.precision = Precision(task="multiclass", num_classes=num_classes)
+        self.recall = Recall(task="multiclass", num_classes=num_classes)
+        self.confusion_matrix = ConfusionMatrix(
+            task="multiclass", num_classes=num_classes
+        )
+        self.validation_step_outputs = []
+        self.test_step_outputs = []
+
+    def forward(self, x):
+        out = self.conv1(x)
+        out = self.relu(out)
+        out = self.maxpool(out)
+        out = out.view(out.size(0), -1)
+        out = self.fc1(out)
+        out = self.relu(out)
+        out = self.fc2(out)
+        return out
+
+    def configure_optimizers(self):
+        optimizer = optim.Adam(self.parameters(), lr=0.001)
+        return optimizer
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        loss = nn.CrossEntropyLoss()(y_hat, y)
+        # acc = (y_hat.argmax(dim=1) == y).float().mean()
+        acc = self.accuracy(y_hat, y)
+        self.log("train_loss", loss)
+        self.log("train_acc", acc)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        loss = nn.CrossEntropyLoss()(y_hat, y)
+        # acc = (y_hat.argmax(dim=1) == y).float().mean()
+        acc = self.accuracy(y_hat, y)
+        self.log("val_loss", loss)
+        self.log("val_acc", acc)
+        self.validation_step_outputs.append({"preds": y_hat, "target": y})
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        loss = nn.CrossEntropyLoss()(y_hat, y)
+        # acc = (y_hat.argmax(dim=1) == y).float().mean()
+        acc = self.accuracy(y_hat, y)
+        self.log("test_loss", loss)
+        self.log("test_acc", acc)
+        self.log("test_precision", self.precision(y_hat, y))
+        self.log("test_recall", self.recall(y_hat, y))
+        self.test_step_outputs.append({"preds": y_hat, "target": y})
 
 
 class LSTMDenseClassifier(pl.LightningModule):
@@ -73,12 +140,12 @@ class LSTMDenseClassifier(pl.LightningModule):
         super().save_hyperparameters()
         self.num_layers = num_layers
         self.classes = classes
-        self.log("model_class", 1)
 
         self.lstm = nn.LSTM(
             input_size, hidden_size, num_layers=self.num_layers, batch_first=True
         )
-        self.fc = nn.Linear(hidden_size, num_classes)
+        self.fc1 = nn.Linear(hidden_size, 128)
+        self.fc2 = nn.Linear(128, num_classes)
         self.relu = nn.ReLU()
         self.accuracy = Accuracy(task="multiclass", num_classes=num_classes)
         self.precision = Precision(task="multiclass", num_classes=num_classes)
@@ -95,7 +162,9 @@ class LSTMDenseClassifier(pl.LightningModule):
 
         lstm_out, _ = self.lstm(x, (h0, c0))
         lstm_out = lstm_out[:, -1, :]
-        out = self.fc(lstm_out)
+        out = self.fc1(lstm_out)
+        out = self.relu(out)
+        out = self.fc2(out)
         return out
 
     def configure_optimizers(self):
