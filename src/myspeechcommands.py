@@ -164,7 +164,7 @@ class MYSPEECHCOMMANDS(Dataset):
             to_predict_labels = list(
                 filter(lambda x: x in labels_to_predict_mapping.keys(), labels_subset)
             )
-            
+
             if "unknown" in labels_subset:
                 labels_subset.remove("unknown")
                 labels_subset += list(unknown_labels)
@@ -172,22 +172,23 @@ class MYSPEECHCOMMANDS(Dataset):
                 # drop duplicates
                 labels_subset = list(set(labels_subset))
                 # remove silence
-                labels_subset.remove("_background_noise_")
+                if "_background_noise_" in labels_subset:
+                    labels_subset.remove("_background_noise_")
 
             for label in labels_subset:
-               if (
-                   label not in unknown_labels
-                   and label not in labels_to_predict_mapping.keys()
-               ):
-                   raise ValueError(f"{label} is not a valid label.")       
+                if (
+                    label not in unknown_labels
+                    and label not in labels_to_predict_mapping.keys()
+                ):
+                    raise ValueError(f"{label} is not a valid label.")
             l_unknown_labels = list(
                 filter(lambda x: x not in to_predict_labels, labels_subset)
             )
             self.local_label_mapping = {
                 label: i for i, label in enumerate(to_predict_labels)
             }
-            
-            print(f'to_predict_labels: {to_predict_labels}')
+
+            print(f"to_predict_labels: {to_predict_labels}")
             self.local_unknown_idx = len(self.local_label_mapping)
             self.int_to_label = {v: k for k, v in self.local_label_mapping.items()}
             self.int_to_label[self.local_unknown_idx] = "unknown"
@@ -259,9 +260,7 @@ class MYSPEECHCOMMANDS(Dataset):
 
         if sample_equally and labels_subset is not None:
             walker_predict = [
-                file
-                for file in self._walker
-                if file.split("/")[2] in to_predict_labels
+                file for file in self._walker if file.split("/")[2] in to_predict_labels
             ]
 
             most_common_label_count = Counter(
@@ -272,7 +271,7 @@ class MYSPEECHCOMMANDS(Dataset):
                 file for file in self._walker if file.split("/")[2] in l_unknown_labels
             ]
             random.shuffle(walker_unknown)
-            walker_unknown = walker_unknown[: most_common_label_count]
+            walker_unknown = walker_unknown[:most_common_label_count]
             self._walker = walker_predict + walker_unknown
 
     def get_metadata(self, n: int) -> Tuple[str, int, str, str, int]:
@@ -321,7 +320,7 @@ class MYSPEECHCOMMANDS(Dataset):
         """
         metadata = self.get_metadata(n)
         if self.wav2vec_transformed:
-            wav2vec_path = metadata[0][:-3] + 'pt'
+            wav2vec_path = metadata[0][:-3] + "pt"
             path = os.path.join(self._archive, wav2vec_path)
             waveform = torch.load(path)
         else:
