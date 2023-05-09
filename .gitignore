@@ -213,3 +213,4 @@ speech_commands_v0.01.tar.gz
 
 **/logs
 **/lightning_logs
+*.png
